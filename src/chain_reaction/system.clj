@@ -3,6 +3,7 @@
    [aero.core :as aero]
    [clojure.tools.logging :as log]
    [clojure.java.io :as io]
+   [chain-reaction.handler :as handler]
    [next.jdbc.connection :as connection]
    [integrant.core :as ig]
    [ring.adapter.jetty :as jetty])
@@ -17,23 +18,23 @@
 (defmethod ig/expand-key :app/config
   [_ {:keys [server db] :as _opts}]
   {:app/server {:port (:port server)
-                :db (ig/ref :app/db)}
+                :handler (ig/ref :app/handler)}
+   :app/handler {:db (ig/ref :app/db)}
    :app/db db})
 
-(defn app [req]
-  {:status 200
-   :body "Hello, World, testing !"
-   :headers {}})
-
 (defmethod ig/init-key :app/server
-  [_ opts]
-  (let [port (:port opts)
+  [_ {:keys [handler port] :as _opts}]
+  (let [
         server (jetty/run-jetty
-                 (fn [req] (app req))
+                 handler
                  {:port port
                   :join? false})]
     (log/info "Server started on port: " port)
     server))
+
+(defmethod ig/init-key :app/handler
+  [_ {:keys [db]}]
+  (handler/app db))
 
 (defmethod ig/init-key :app/db
   [_ opts]
