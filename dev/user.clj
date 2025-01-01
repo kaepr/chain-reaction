@@ -1,12 +1,13 @@
 (ns user
-  (:require [clojure.tools.namespace.repl :refer [set-refresh-dirs]]
-            [integrant.core :as ig]
-            [chain-reaction.system :as system]
-            [integrant.repl :refer [set-prep! go halt reset reset-all]]))
+  (:require
+   [chain-reaction.system :as system]
+   [clojure.tools.namespace.repl :refer [set-refresh-dirs]]
+   [integrant.core :as ig]
+   [integrant.repl :refer [go halt reset reset-all set-prep!]]))
 
 (set-prep!
- (fn []
-   (ig/expand (system/read-config))))
+  (fn []
+    (ig/expand (system/read-config))))
 
 (set-refresh-dirs "src" "resources")
 

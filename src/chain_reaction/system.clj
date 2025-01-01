@@ -1,9 +1,13 @@
 (ns chain-reaction.system
   (:require
    [aero.core :as aero]
+   [clojure.tools.logging :as log]
    [clojure.java.io :as io]
+   [next.jdbc.connection :as connection]
    [integrant.core :as ig]
-   [ring.adapter.jetty :as jetty]))
+   [ring.adapter.jetty :as jetty])
+  (:import (com.zaxxer.hikari HikariDataSource)
+           (org.flywaydb.core Flyway)))
 
 (defn read-config []
   {:app/config (-> "config.edn"
@@ -11,8 +15,10 @@
                  aero/read-config)})
 
 (defmethod ig/expand-key :app/config
-  [_ {:keys [port] :as opts}]
-  {:app/server {:port port}})
+  [_ {:keys [server db] :as _opts}]
+  {:app/server {:port (:port server)
+                :db (ig/ref :app/db)}
+   :app/db db})
 
 (defn app [req]
   {:status 200
@@ -26,10 +32,29 @@
                  (fn [req] (app req))
                  {:port port
                   :join? false})]
-    (println (str "Server started on port: " port))
+    (log/info "Server started on port: " port)
     server))
+
+(defmethod ig/init-key :app/db
+  [_ opts]
+  (let [jdbcUrl (connection/jdbc-url opts)
+        datasource (connection/->pool HikariDataSource {:jdbcUrl jdbcUrl})
+        _ (do
+            (log/info "Database migrations started")
+            (.migrate
+             (.. (Flyway/configure)
+                 (dataSource datasource)
+                 (locations (into-array String ["classpath:database/migrations"]))
+                 (table "schema_version")
+                 (load)))
+            (log/info "Database migrations are done"))]
+    datasource))
+
+(defmethod ig/halt-key! :app/db
+  [_ datasource]
+  (.close datasource))
 
 (defmethod ig/halt-key! :app/server
   [_ server]
-  (println "Stopping server !")
+  (log/info "Stopping server !")
   (.stop server))

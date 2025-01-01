@@ -2,7 +2,6 @@
   (:require
    [chain-reaction.system :as system]
    [integrant.core :as ig])
-   
   (:gen-class))
 
 (defn -main [& _args]
