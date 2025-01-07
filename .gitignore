@@ -28,3 +28,4 @@
 /classes
 /target
 local.db
+resources/public/css/main.css # will be generated dev / build time
