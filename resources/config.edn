@@ -2,4 +2,4 @@
  {:port #long #or [#env PORT 3000]}
  :db
  {:dbtype "sqlite"
-  :dbname #or [#env DB_NAME ":memory:"]}}
+  :dbname #or [#env DB_NAME "local.db"]}}
