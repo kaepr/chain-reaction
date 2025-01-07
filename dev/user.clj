@@ -12,10 +12,20 @@
 (set-refresh-dirs "src" "resources")
 
 (comment
+  ;; integrant
 
   (go)
   (halt)
   (reset)
   (reset-all)
+
+  ())
+
+(comment
+  ;; hotload libs
+
+  #_(require '[clojure.deps.repl] :refer [add-lib add-libs sync-deps])
+
+  #_(add-libs '{})
 
   ())
