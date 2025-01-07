@@ -3,7 +3,7 @@
    [aero.core :as aero]
    [clojure.tools.logging :as log]
    [clojure.java.io :as io]
-   [chain-reaction.handler :as handler]
+   [chain-reaction.app :as app-handler]
    [next.jdbc.connection :as connection]
    [integrant.core :as ig]
    [ring.adapter.jetty :as jetty])
@@ -34,7 +34,7 @@
 
 (defmethod ig/init-key :app/handler
   [_ {:keys [db]}]
-  (handler/app db))
+  (app-handler/app db))
 
 (defmethod ig/init-key :app/db
   [_ opts]
