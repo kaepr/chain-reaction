@@ -1,6 +1,8 @@
 (ns chain-reaction.handler
   (:require [ring.util.response :as resp]
             [chain-reaction.ui :as ui]
+            [ring.websocket :as ws]
+            [clojure.data.json :as json]
             [buddy.hashers :as bh]
             [chain-reaction.db :as db]
             [clojure.tools.logging :as log]))
@@ -55,3 +57,21 @@
   {:status 200
    :session nil
    :headers {"HX-Redirect" "/"}})
+
+(defn room [{:keys [path-params] :as req}]
+  (tap> req)
+  (assert (ws/upgrade-request? req))
+  (let [room-id (:id path-params)]
+    (tap> room-id)
+    {::ws/listener
+     {:on-open
+      (fn [socket]
+        (ws/send socket "I will echo your messages"))
+      :on-message
+      (fn [socket message]
+        (tap> socket)
+        (tap> message)
+        (tap> (json/read-str message))
+        (if (= message "exit")
+          (ws/close socket)
+          (ws/send socket message)))}}))

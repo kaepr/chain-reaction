@@ -21,6 +21,8 @@
      ["/sign-in" {:get #'handler/sign-in-page
                   :post #'handler/sign-in}]
      ["/logout" {:post #'handler/logout}]
+     ["/room" :middleware [mid/wrap-logged-in]
+      ["/:id" {:get {:handler #'handler/room}}]]
      ["/dashboard" {:get #'handler/dashboard-page
                     :middleware [mid/wrap-logged-in]}]]
     {:data {:db db

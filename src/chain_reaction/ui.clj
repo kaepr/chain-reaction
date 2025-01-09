@@ -2,7 +2,9 @@
   (:require [ring.util.response :as ring-response]
             [rum.core :as rum]
             [cheshire.core :as cheshire]
+            [clojure.data.json :as json]
             [ring.middleware.anti-forgery :as csrf]
+            [chain-reaction.game :as game]
             [clojure.java.io :as io]))
 
 (defn css-path []
@@ -191,6 +193,62 @@
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"}
        "Sign In"]])
 
+(defn render-orb [mass color]
+  (let [positions {1 [{:cx 12 :cy 12}]
+                   2 [{:cx 7 :cy 12} {:cx 17 :cy 12}]
+                   3 [{:cx 12 :cy 7} {:cx 7 :cy 17} {:cx 17 :cy 17}]}
+        color-class (condp = color
+                      :empty "text-gray-300"
+                      :red "text-red-500"
+                      :green "text-green-500"
+                      "text-black-300")]
+    [:svg {:viewbox "0 0 24 24"
+           :class "w-3/4 h-3/4"}
+     (for [pos (get positions mass)
+           :let [{:keys [cx cy]} pos]]
+       [:circle {:cx cx
+                 :cy cy
+                 :r "6"
+                 :fill "currentColor"
+                 :class (str color-class " " "drop-shadow-sm")}
+        [:animatetransform
+         {:attributename "transform"
+          :type "translate"
+          :values "-0.3,0.3; 0.3,-0.3; -0.3,0.3"
+          :dur "0.6s"
+          :repeatcount "indefinite"}]])]))
+
+(defn render-cell [row-idx col-idx cell]
+  (let [mass (first cell)
+        color (second cell)]
+    [:div {:class "border border-gray-300 aspect-square flex items-center justify-center bg-white cursor-pointer transition-all duration-200 hover:bg-gray-100 hover:border-gray-400"
+           :hx-vals (json/write-str {:event-type :cell-click
+                                     :row row-idx
+                                     :col col-idx})
+           :ws-send ""
+           :name "cell-click"
+           :hx-trigger "click"
+           :style {:aspect-ratio "1/1"}}
+     (render-orb mass color)]))
+
+(defn render-board [board]
+  (let []
+    [:div {:class "flex justify-center p-6"}
+     [:div {:class "w-full max-w-2xl bg-white rounded-lg p-4"}
+      [:div {:class "flex mb-1"}
+       [:div {:class "w-10"}]
+       (for [col-idx (range 0 6)]
+         [:div {:class "flex-1 text-center text-lg font-semibold text-gray-700"}
+               (str col-idx)])]
+      (for [row-idx (range 0 9)]
+        [:div {:class "flex"}
+         [:div {:class "w-10 flex items-center justify-center text-lg font-semibold text-gray-700"}
+          (str row-idx)]
+         [:div {:class "flex-1 grid grid-cols-6"}
+          (for [col-idx (range 0 6)
+                :let [cell (get-in board [row-idx col-idx])]]
+            (render-cell row-idx col-idx cell))]])]]))
+
 (defn dashboard [{:keys [username]}]
   (page {}
         [:div {:class "min-h-screen bg-gray-50"}
@@ -204,13 +262,41 @@
                       :hx-post "/logout"}
              "Logout"]]]]
          ; main content
-         [:div {:class "max-w-5xl mx-auto px-4 py-8"}
+         [:div {:class "max-w-5xl mx-auto px-4 py-8 min-h-screen h-full"}
           [:div {:class "flex flex-col sm:flex-row gap-4 mb-8"}
-           [:a {:class "flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"}
+           [:a {:class "cursor-pointer flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"}
             "Create Room"]
-           [:a {:class "flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"}
-            "Join Room"]]]]))
-
+           [:a {:class "cursor-pointer flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"}
+            "Join Room"]]
+          [:div {:class ""
+                 :hx-ext "ws"
+                 :ws-connect "/room/123"}
+           "Websocket connector"
+           [:div {:class "border-solid cursor-pointer p-2"
+                  :id "div-random-id"
+                  :name "cell-click"
+                  :ws-send ""
+                  :hx-vals (json/write-str {:row 4})
+                  :hx-trigger "click"}
+            "Click me to send some message"
+            (render-board (-> (game/empty-board)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :green 0 0)
+                            (game/explode :red 0 0)
+                            (game/explode :red 0 0)))]]]]))
+          
 (defn on-error [{:keys [status ex]}]
   (-> {:status status
        :body (rum/render-static-markup
