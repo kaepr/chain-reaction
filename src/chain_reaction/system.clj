@@ -19,7 +19,9 @@
   [_ {:keys [server db] :as _opts}]
   {:app/server {:port (:port server)
                 :handler (ig/ref :app/handler)}
-   :app/handler {:db (ig/ref :app/db)}
+   :app/handler {:db (ig/ref :app/db)
+                 :*rooms (ig/ref :app/rooms)}
+   :app/rooms nil
    :app/db db})
 
 (defmethod ig/init-key :app/server
@@ -32,9 +34,13 @@
     (log/info "Server started on port: " port)
     server))
 
+(defmethod ig/init-key :app/rooms
+  [_ _]
+  (atom {}))
+
 (defmethod ig/init-key :app/handler
-  [_ {:keys [db]}]
-  (app-handler/app db))
+  [_ opts]
+  (app-handler/app opts))
 
 (defmethod ig/init-key :app/db
   [_ opts]
@@ -54,6 +60,10 @@
 (defmethod ig/halt-key! :app/db
   [_ datasource]
   (.close datasource))
+
+(defmethod ig/halt-key! :app/rooms
+  [_ *rooms]
+  (reset! *rooms {}))
 
 (defmethod ig/halt-key! :app/server
   [_ server]

@@ -84,9 +84,11 @@
 (defn empty-board []
   (vec (repeat grid-rows (vec (repeat grid-cols (make-cell))))))
 
+()
+
 (comment
 
-  (-> (empty-board)
-      )
+  (-> (empty-board))
+      
 
   ())

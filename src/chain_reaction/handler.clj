@@ -3,8 +3,11 @@
             [chain-reaction.ui :as ui]
             [ring.websocket :as ws]
             [clojure.data.json :as json]
+            [rum.core :as rum]
+            [chain-reaction.entity :as entity]
             [buddy.hashers :as bh]
             [chain-reaction.db :as db]
+            [chain-reaction.entity :as e]
             [clojure.tools.logging :as log]))
             
 (defn home-page [{:keys [db] :as req}]
@@ -31,15 +34,9 @@
 
 (defn sign-in [{:keys [db params]}]
   (let [{:keys [username password]} params
-        _ (tap> username)
-        _ (tap> password)
         {:keys [user okay]} (db/find-user-by-name db username)]
     (if (and user okay)
-      (let [_ (tap> user)
-            _ (tap> "hello")
-            _ (tap> (:password user))
-            password-match? (:valid (bh/verify password (:password user)))
-            _ (tap> password-match?)]
+      (let [password-match? (:valid (bh/verify password (:password user)))]
         (if password-match?
           {:status 200
            :headers {"hx-redirect" "/dashboard"}
@@ -58,20 +55,48 @@
    :session nil
    :headers {"HX-Redirect" "/"}})
 
-(defn room [{:keys [path-params] :as req}]
-  (tap> req)
-  (assert (ws/upgrade-request? req))
+(defn room-ws-handler [{:keys [path-params]}]
   (let [room-id (:id path-params)]
     (tap> room-id)
     {::ws/listener
      {:on-open
       (fn [socket]
-        (ws/send socket "I will echo your messages"))
+        (ws/send socket (rum/render-static-markup
+                         [:div {:class ""
+                                :hx-swap-oob "beforeend"
+                                :id "game-log"}
+                           [:p "New Event"]])))
       :on-message
       (fn [socket message]
-        (tap> socket)
-        (tap> message)
-        (tap> (json/read-str message))
         (if (= message "exit")
           (ws/close socket)
           (ws/send socket message)))}}))
+
+(defn create-room [{:keys [*rooms] :as req}]
+  (let [room-id (entity/room-id)
+        new-room (entity/->room room-id)
+        _ (swap! *rooms (fn [rooms] (assoc rooms room-id new-room)))]
+    {:status 200
+     :headers {"HX-Redirect" (str "/room/play/" room-id)}}))
+
+(defn join-room [{:keys [*rooms params] :as req}]
+  (let [room-id (:room-id params)
+        {:keys [p1 p2] :as room} (get @*rooms room-id)]
+    (cond
+      (not room) (ui/join-room-form {:error "Room does not exist."})
+      (and p1 p2) (ui/join-room-form {:error "Room already full."})
+      :else {:status 200
+             :headers {"HX-Redirect" (str "/room/play/" room-id)}})))
+
+(defn room-page [{:keys [path-params *rooms] :as req}]
+  (if (ws/upgrade-request? req)
+    (room-ws-handler req)
+    (let [room-id (:id path-params)
+          username (:username (:session req))
+          room (get @*rooms room-id)]
+      (if room
+        (ui/room {:id room-id
+                  :username username
+                  :room room})
+        (ui/on-error {:status 404
+                      :message "Room not found."})))))

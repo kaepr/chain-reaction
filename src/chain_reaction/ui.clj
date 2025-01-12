@@ -3,6 +3,7 @@
             [rum.core :as rum]
             [cheshire.core :as cheshire]
             [clojure.data.json :as json]
+            [chain-reaction.entity :as entity]
             [ring.middleware.anti-forgery :as csrf]
             [chain-reaction.game :as game]
             [clojure.java.io :as io]))
@@ -36,7 +37,7 @@
           :lang "en-US"
           :description "Chain Reaction App"}
    :head [[:link {:rel "stylesheet" :href (static-path "/css/main.css")}]
-          [:script {:src (static-path "js/main.js")}]
+          [:script {:src (static-path "/js/main.js")}]
           [:script {:src "https://unpkg.com/htmx.org@1.9.12"}]
           [:script {:src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"}]
           [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]]})
@@ -234,7 +235,7 @@
 (defn render-board [board]
   (let []
     [:div {:class "flex justify-center p-6"}
-     [:div {:class "w-full max-w-2xl bg-white rounded-lg p-4"}
+     [:div {:class "w-full max-w-2xl rounded-lg p-4"}
       [:div {:class "flex mb-1"}
        [:div {:class "w-10"}]
        (for [col-idx (range 0 6)]
@@ -249,55 +250,170 @@
                 :let [cell (get-in board [row-idx col-idx])]]
             (render-cell row-idx col-idx cell))]])]]))
 
-(defn dashboard [{:keys [username]}]
+(defn signed-in-topbar [username & contents]
+  [:div {:class "min-h-screen bg-gray-50"}
+    [:div {:class "bg-white shadow"}
+     [:div {:class "max-w-5xl mx-auto px-4"}
+      [:div {:class "h-16 flex items-center justify-between"}
+       [:a {:class "font-medium text-gray-800 cursor-pointer"
+            :href "/dashboard"}
+        username]
+       [:button {:class "flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                 :hx-post "/logout"}
+        "Logout"]]]]
+    contents])
+
+(defn logged-in-wrapper [{:keys [username]} & contents]
   (page {}
-        [:div {:class "min-h-screen bg-gray-50"}
-         ; top bar
-         [:div {:class "bg-white shadow"}
-          [:div {:class "max-w-5xl mx-auto px-4"}
-           [:div {:class "h-16 flex items-center justify-between"}
-            [:div {:class "font-medium text-gray-800"}
-             username]
-            [:button {:class "flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                      :hx-post "/logout"}
-             "Logout"]]]]
-         ; main content
-         [:div {:class "max-w-5xl mx-auto px-4 py-8 min-h-screen h-full"}
-          [:div {:class "flex flex-col sm:flex-row gap-4 mb-8"}
-           [:a {:class "cursor-pointer flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"}
-            "Create Room"]
-           [:a {:class "cursor-pointer flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"}
-            "Join Room"]]
+        (signed-in-topbar username
+          contents)))
+
+(defn join-room-form [{:keys [error]}]
+  [:form {:class "space-y-6"
+             :hx-post "/room/join"
+             :hx-target "this"
+             :hx-swap "outerHTML"}
+      (when error
+        [:div {:class "bg-red-50 border-l-4 border-red-500 p-4 my-4 rounded"}
+         [:div {:class "flex items-center text-sm text-red-700"}
+          error]])
+      [:div
+       [:label {:class "block text-sm font-medium text-gray-700"}
+        "Room #"]
+       [:input {:class "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
+                        focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                :name "room-id"
+                :type "text"
+                :required true
+                :id "room-id"}]]
+      [:button {:type "submit"
+                :class "w-full flex justify-center py-2 px-4 border border-transparent rounded-md
+                     shadow-sm text-sm font-medium text-white bg-indigo-700 hover:bg-black
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"}
+       "Join Room"]])
+
+(defn create-room-button []
+  [:a {:class "cursor-pointer text-center flex-1 bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+       :hx-post "/room/create"}
+    "Create Room"])
+
+(defn dashboard [opts & contents]
+  (logged-in-wrapper
+    opts
+    [:div {:class "max-w-5xl mx-auto px-4 py-8 min-h-screen h-full"}
+     [:div {:class "flex flex-col gap-4 mb-8"}
+      (create-room-button)
+      [:span {:class "flex  items-center"}
+       [:span {:class "h-px flex-1 bg-black"}]
+       [:span {:class "shrink-0 px-6"} "OR"]
+       [:span {:class "h-px flex-1 bg-black"}]]
+      (join-room-form {})]
+     contents]))
+
+;; (defn dashboard [{:keys [username]}]
+;;   (page {}
+;;         [:div {:class "min-h-screen bg-gray-50"}
+;;          ; top bar
+;;          [:div {:class "bg-white shadow"}
+;;           [:div {:class "max-w-5xl mx-auto px-4"}
+;;            [:div {:class "h-16 flex items-center justify-between"}
+;;             [:div {:class "font-medium text-gray-800"}
+;;              username]
+;;             [:button {:class "flex items-center gap-2 text-gray-600 hover:text-gray-800"
+;;                       :hx-post "/logout"}
+;;              "Logout"]]]]
+;;          ; main content
+;;          [:div {:class "max-w-5xl mx-auto px-4 py-8 min-h-screen h-full"}
+;;           [:div {:class "flex flex-col sm:flex-row gap-4 mb-8"}
+;;            [:a {:class "cursor-pointer flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"}
+;;             "Create Room"]
+;;            [:a {:class "cursor-pointer flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"}
+;;             "Join Room"]]
+;;           [:div {:class ""
+;;                  :hx-ext "ws"
+;;                  :ws-connect "/room/123"}
+;;            "Websocket connector"
+;;            [:div {:class ""
+;;                   :id "game-log"}
+;;             [:p "Created Room"]]
+;;            [:div {:class "border-solid cursor-pointer p-2"
+;;                   :id "div-random-id"
+;;                   :name "cell-click"
+;;                   :ws-send ""
+;;                   :hx-vals (json/write-str {:row 4})
+;;                   :hx-trigger "click"}
+;;             "Click me to send some message"
+;;             (render-board (-> (game/empty-board)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :green 0 0)
+;;                             (game/explode :red 0 0)
+;;                             (game/explode :red 0 0)))]]]]))
+
+
+(defn game-log [log])
+
+(defn room-info [{:keys [id state p1 p2] :as _room}]
+  (let [p1-user (or (entity/player-name p1) "")
+        p2-user (or (entity/player-name p2) "")]
+    [:div {:class "p-4 text-center mx-auto mt-8 max-w-2xl relative overflow-x-auto rounded-xl"
+           :id "room-info"}
+     [:table {:class "w-full text-sm text-left rtl:text-right text-gray-500 shadow-md rounded-xl"}
+      [:tbody
+       [:tr {:class "odd:bg-white even:bg-gray-50 order-b"}
+        [:th {:scope "row"
+              :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
+         "Room #"]
+        [:td {:class "px-6 py-4"}
+         (str id)]]
+       [:tr {:class "odd:bg-white even:bg-gray-50 order-b"}
+        [:th {:scope "row"
+              :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
+         "Player 1"]
+        [:td {:class "px-6 py-4 text-green-600 font-bold"}
+         p1-user]]
+       [:tr {:class "odd:bg-white even:bg-gray-50 order-b"}
+        [:th {:scope "row"
+              :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
+         "Player 2"]
+        [:td {:class "px-6 py-4 text-red-600 font-bold"}
+         p2-user]]
+       [:tr {:class "odd:bg-white even:bg-gray-50 order-b"}
+        [:th {:scope "row"
+              :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
+         "State"]
+        [:td {:class "rounded-md px-2 py-1 font-medium text-gray-600 "}
+         (name state)]]]]
+     (when (= :not-started state)
+       [:p {:class "py-4 px-4 mt-4 bg-white"}
+        "Game has not yet started. Invite another player by sending them the room code or sharing the URL."])
+     (when (= :finished state)
+       [:p {:class "py-4 px-4 mt-4 bg-white"}
+        "Game has completed. Move back to the dashboard for playing again."])
+     (when (or (= :p2-turn state) (= :p1-turn state))
+       [:p {:class "py-4 px-4 mt-4 bg-white"}
+        "Some moves may take a long time to process."])]))
+
+(defn room [{:keys [id username room]}]
+  (page {}
+        (signed-in-topbar username
+          (room-info room)
+          (render-board (game/empty-board))
           [:div {:class ""
-                 :hx-ext "ws"
-                 :ws-connect "/room/123"}
-           "Websocket connector"
-           [:div {:class "border-solid cursor-pointer p-2"
-                  :id "div-random-id"
-                  :name "cell-click"
-                  :ws-send ""
-                  :hx-vals (json/write-str {:row 4})
-                  :hx-trigger "click"}
-            "Click me to send some message"
-            (render-board (-> (game/empty-board)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :green 0 0)
-                            (game/explode :red 0 0)
-                            (game/explode :red 0 0)))]]]]))
+                 :id "game-log"}])))
           
-(defn on-error [{:keys [status ex]}]
+(defn on-error [{:keys [status message ex]}]
   (-> {:status status
        :body (rum/render-static-markup
               (page
@@ -307,7 +423,7 @@
                  [:<>
                   [:p.text-xl.font-medium.text-blue-500
                    (if (= status 404)
-                     "Not found"
+                     (or message "Not found")
                      "Something went wrong")]]]]))}
    (ring-response/content-type "text/html")))
 

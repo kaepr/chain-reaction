@@ -13,19 +13,25 @@
     {:not-found
      (constantly (#'ui/on-error {:status 404}))})))
 
-(defn routes [db]
+(defn routes [{:keys [*rooms db]}]
   (ring/router
-    [["/" {:get #'handler/home-page}]
-     ["/sign-up" {:get {:handler #'handler/sign-up-page}
+    [["/" {:get #'handler/home-page
+           :middleware [mid/wrap-redirect-logged-in]}]
+     ["/sign-up" {:get {:handler #'handler/sign-up-page
+                        :middleware [mid/wrap-redirect-logged-in]}
                   :post {:handler #'handler/sign-up}}]
-     ["/sign-in" {:get #'handler/sign-in-page
+     ["/sign-in" {:get {:handler #'handler/sign-in-page
+                        :middleware [mid/wrap-redirect-logged-in]}
                   :post #'handler/sign-in}]
      ["/logout" {:post #'handler/logout}]
-     ["/room" :middleware [mid/wrap-logged-in]
-      ["/:id" {:get {:handler #'handler/room}}]]
-     ["/dashboard" {:get #'handler/dashboard-page
+     ["/room" {:middleware [mid/wrap-logged-in]}
+      ["/create" {:post {:handler #'handler/create-room}}]
+      ["/join" {:post {:handler #'handler/join-room}}]
+      ["/play/:id" {:get {:handler #'handler/room-page}}]]
+     ["/dashboard" {:get {:handler #'handler/dashboard-page}
                     :middleware [mid/wrap-logged-in]}]]
     {:data {:db db
             :middleware [#(mid/wrap-db % db)
+                         #(mid/wrap-rooms % *rooms)
                          mid/wrap-render-rum]}}))
                          

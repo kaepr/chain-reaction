@@ -1,6 +1,7 @@
 (ns chain-reaction.middleware
   (:require [rum.core :as rum]
             [ring.util.response :as resp]
+            [clojure.tools.logging :as log]
             [jdbc-ring-session.core :as jdbc-ring-session]
             [ring.middleware.defaults :as ring-defaults]))
 
@@ -18,6 +19,10 @@
   (fn [req]
     (handler (assoc req :db db))))
 
+(defn wrap-rooms [handler *rooms]
+  (fn [req]
+    (handler (assoc req :*rooms *rooms))))
+
 (defn wrap-ring-defaults [handler db]
   (-> handler
       (ring-defaults/wrap-defaults (assoc-in ring-defaults/site-defaults
@@ -26,9 +31,19 @@
                                                                  db
                                                                  {:table :session_store})))))
 
+(defn wrap-redirect-logged-in [handler]
+  (fn [req]
+    (tap> req)
+    (log/info "request object" req)
+    (log/info "request object" (:username (:session req)))
+    (if (seq (get-in req [:session :username]))
+      (resp/redirect "/dashboard")
+      (handler req))))
+
+(seq (get-in {:session {}} [:session :username]))
+
 (defn wrap-logged-in [handler]
   (fn [req]
-    (let [session (:session req)]
-      (if (seq session)
-        (handler req)
-        (resp/redirect "/sign-in")))))
+    (if (empty? (get-in req [:session :username]))
+      (resp/redirect "/sign-in")
+      (handler req))))

@@ -3,9 +3,9 @@
             [chain-reaction.middleware :as mid]
             [chain-reaction.routes :as routes]))
 
-(defn app [db]
+(defn app [{:keys [db] :as opts}]
   (ring/ring-handler
-   (routes/routes db)
+   (routes/routes opts)
    #'routes/default-handler
    {:middleware [#(mid/wrap-ring-defaults % db)]}))
                  
