@@ -393,7 +393,7 @@
         [:th {:scope "row"
               :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
          "State"]
-        [:td {:class "rounded-md px-2 py-1 font-medium text-gray-600 "}
+        [:td {:class "rounded-md px-6 py-4 font-medium text-gray-600 "}
          (name state)]]]]
      (when (= :not-started state)
        [:p {:class "py-4 px-4 mt-4 bg-white"}
@@ -405,14 +405,17 @@
        [:p {:class "py-4 px-4 mt-4 bg-white"}
         "Some moves may take a long time to process."])]))
 
-(defn room [{:keys [id username room]}]
+(defn room [{:keys [username room id]}]
   (page {}
         (signed-in-topbar username
-          (room-info room)
-          (render-board (game/empty-board))
           [:div {:class ""
-                 :id "game-log"}])))
-          
+                 :hx-ext "ws"
+                 :ws-connect (str "/room/play/" id)}
+            (room-info room)
+            (render-board (:board room))
+            [:div {:class ""
+                   :id "game-log"}]])))
+
 (defn on-error [{:keys [status message ex]}]
   (-> {:status status
        :body (rum/render-static-markup

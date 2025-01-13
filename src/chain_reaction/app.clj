@@ -8,4 +8,3 @@
    (routes/routes opts)
    #'routes/default-handler
    {:middleware [#(mid/wrap-ring-defaults % db)]}))
-                 

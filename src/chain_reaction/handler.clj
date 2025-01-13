@@ -5,6 +5,7 @@
             [clojure.data.json :as json]
             [rum.core :as rum]
             [chain-reaction.entity :as entity]
+            [chain-reaction.room :as room]
             [buddy.hashers :as bh]
             [chain-reaction.db :as db]
             [chain-reaction.entity :as e]
@@ -55,23 +56,6 @@
    :session nil
    :headers {"HX-Redirect" "/"}})
 
-(defn room-ws-handler [{:keys [path-params]}]
-  (let [room-id (:id path-params)]
-    (tap> room-id)
-    {::ws/listener
-     {:on-open
-      (fn [socket]
-        (ws/send socket (rum/render-static-markup
-                         [:div {:class ""
-                                :hx-swap-oob "beforeend"
-                                :id "game-log"}
-                           [:p "New Event"]])))
-      :on-message
-      (fn [socket message]
-        (if (= message "exit")
-          (ws/close socket)
-          (ws/send socket message)))}}))
-
 (defn create-room [{:keys [*rooms] :as req}]
   (let [room-id (entity/room-id)
         new-room (entity/->room room-id)
@@ -87,6 +71,45 @@
       (and p1 p2) (ui/join-room-form {:error "Room already full."})
       :else {:status 200
              :headers {"HX-Redirect" (str "/room/play/" room-id)}})))
+
+(defn room-ws-handler [{:keys [path-params *rooms] :as req}]
+  (let [room-id (:id path-params)
+        {:keys [id username]} (:session req)]
+    {::ws/listener
+     {:on-open
+      (fn [socket]
+        (tap> socket)
+        (tap> *rooms)
+        (tap> id)
+        (tap> username)
+        (let [player (entity/->player id username socket)
+              _ (tap> "room state")
+              _ (tap> @*rooms)
+              {:keys [error]} (room/join *rooms room-id player)]
+          (if error
+            (do
+              (tap> error)
+              (ui/on-error {:message "Failed to join the room."}))
+            (let [_ (ws/send socket (rum/render-static-markup [:div {:id "hi"} "Hello"]))
+                  room (get @*rooms room-id)
+                  sockets (entity/player-sockets room)
+                  _ (do
+                      (tap> "namaste")
+                      (tap> room)
+                      (tap> sockets))
+                  s1 (first socket)
+                  s2 (second socket)
+                  _ (tap> s1)
+                  _ (tap> s2)]
+              (when s1
+                (ws/send s1 (rum/render-static-markup (ui/room-info room))))
+              (when s2
+                (ws/send s2 (rum/render-static-markup (ui/room-info room))))))))
+      :on-message
+      (fn [socket message]
+        (if (= message "exit")
+          (ws/close socket)
+          (ws/send socket message)))}}))
 
 (defn room-page [{:keys [path-params *rooms] :as req}]
   (if (ws/upgrade-request? req)

@@ -33,9 +33,6 @@
 
 (defn wrap-redirect-logged-in [handler]
   (fn [req]
-    (tap> req)
-    (log/info "request object" req)
-    (log/info "request object" (:username (:session req)))
     (if (seq (get-in req [:session :username]))
       (resp/redirect "/dashboard")
       (handler req))))

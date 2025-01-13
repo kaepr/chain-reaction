@@ -1,5 +1,6 @@
 (ns chain-reaction.room
-  (:require [chain-reaction.game :as game]))
+  (:require [chain-reaction.game :as game]
+            [chain-reaction.entity :as entity]))
 
 (defn room-id
   "Returns a unique randomly generated id."
@@ -11,6 +12,7 @@
 ;;;; :not-started
 ;;;; :player-1-turn
 ;;;; :player-2-turn
+;;;; :did-not-finish
 ;;;; :finished
 ;;;;
 
@@ -33,20 +35,32 @@
   {:id id
    :socket socket})
 
+(defn add-player-to-room [])
+
+(defn player-sockets [room]
+  [(get-in room [:p1 :socket]) (get-in room [:p2 :socket])])
+
 (defn join
   "Joins a player to specific room.
 
   Attaches the socket and user id to an empty position in the room.
-  If the second player joins, update room status to `:player-1-turn`.
+  If the second player joins, update room status to `:p1-turn`.
   Othewise, returns `{:err <reason>}`."
-  [*rooms room-id socket user-id]
-  (swap! *rooms (fn [rooms]
-                  (let [{:keys [p1 p2]} [get rooms room-id]]
-                    (cond
-                      (empty? p1) (assoc rooms room-id)
-                      (empty? p2) ()
-                      :else {:err "Room is full. Please try another."})))))
-
+  [*rooms room-id player]
+  (let [[old-rooms new-rooms] (swap-vals!
+                               *rooms
+                               (fn [rooms]
+                                 (let [room (get rooms room-id)
+                                       {:keys [error] :as new-room} (entity/add-player room player)]
+                                   (if error
+                                     rooms
+                                     (assoc rooms room-id new-room)))))
+        room (get @*rooms room-id)
+        {:keys [error]} (entity/add-player room player)
+        changed? (= old-rooms new-rooms)]
+    (if changed?
+      {:okay "Player joined successfully."}
+      {:error "Something went wrong while joining room."})))
 
 (defn remove-empty [*rooms])
 
