@@ -4,9 +4,11 @@ Chain reaction game implemented as a multiplayer web app.
 
 Deployed Link: [chain-reaction-app.fly.dev](https://chain-reaction-app.fly.dev)
 
-Please note that the first load might take a while (around 1 min) to load.
+Please note that the first load could take a while (around 1 min) to load.
 
-https://github.com/user-attachments/assets/e7c83f14-81bc-4290-aaec-5f4968051a92
+
+https://github.com/user-attachments/assets/ca69469f-b8f8-4ea2-9a7e-fbbb085218a9
+
 
 ## Run Locally
 
