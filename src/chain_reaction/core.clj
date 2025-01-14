@@ -6,6 +6,7 @@
 
 (defn -main [& _args]
   (let [s (-> (system/read-config)
+              (ig/expand)
               (ig/init))]
     (.addShutdownHook
       (Runtime/getRuntime)
