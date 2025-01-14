@@ -2,6 +2,13 @@
 
 Chain reaction game implemented as a multiplayer web app.
 
+Deployed Link: [chain-reaction-app.fly.dev](https://chain-reaction-app.fly.dev)
+
+Please note that the first load might take a while (around 1 min) to load.
+
+
+
+
 Built using Clojure and HTMX.
 
 ## Run Locally
@@ -38,4 +45,14 @@ It starts a tailwindcss process which watches the `src` directories and rebuilds
 
 # Build
 
+```shell
+clj -T:build uber
+```
+
+Creates a standlone uberjar `/target` folder.
+
 # Deployment 
+
+Refer `Dockerfile` for creating the image. I used [fly.io](fly.io) for deploying the docker image.
+
+Used [Practicalli | Multi-Stage Dockerfile for Clojure](https://practical.li/engineering-playbook/continuous-integration/docker/clojure-multi-stage-dockerfile/) as reference for creating the Dockerfile.
