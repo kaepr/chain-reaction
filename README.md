@@ -6,10 +6,7 @@ Deployed Link: [chain-reaction-app.fly.dev](https://chain-reaction-app.fly.dev)
 
 Please note that the first load might take a while (around 1 min) to load.
 
-
-
-
-Built using Clojure and HTMX.
+https://github.com/user-attachments/assets/e7c83f14-81bc-4290-aaec-5f4968051a92
 
 ## Run Locally
 
