@@ -84,11 +84,38 @@
 (defn empty-board []
   (vec (repeat grid-rows (vec (repeat grid-cols (make-cell))))))
 
-()
+(defn merge-count [x y]
+  {:green (+ (get x :green 0) (get y :green 0))
+   :red (+ (get x :red 0) (get y :red 0))})
+
+(defn finished? [board]
+  (let [{:keys [green red]}
+        (reduce
+          (fn [acc row]
+            (merge-count
+             acc
+             (reduce (fn [acc2 item]
+                       (merge-count
+                        acc2
+                        (condp = (second item)
+                          :red {:red 1}
+                          :green {:green 1}
+                          {})))
+                     {:green 0
+                      :red 0}
+                     row)))
+          {:green 0
+           :red 0}
+          board)]
+    (or
+     (and (zero? green) (> red 0))
+     (and (zero? red) (> green 0)))))
 
 (comment
 
   (-> (empty-board))
-      
+
+  (finished? (-> (empty-board))
+           (move :green 0 0))
 
   ())

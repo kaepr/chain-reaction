@@ -234,7 +234,8 @@
 
 (defn render-board [board]
   (let []
-    [:div {:class "flex justify-center p-6"}
+    [:div {:class "flex justify-center p-6"
+           :id "room-game-board"}
      [:div {:class "w-full max-w-2xl rounded-lg p-4"}
       [:div {:class "flex mb-1"}
        [:div {:class "w-10"}]
@@ -297,6 +298,39 @@
        :hx-post "/room/create"}
     "Create Room"])
 
+(defn match-history [matches]
+  [:div {:class "w-max-5xl mx-auto overflow-x-auto bg-white rounded-lg shadow"}
+   [:table {:class "w-full min-w-full divide-y divide-gray-200"}
+    [:thead {:class "bg-gray-100"}
+     [:tr
+      [:th {:class "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"}
+       "Player 1"]
+      [:th {:class "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"}
+       "Player 2"]
+      [:th {:class "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"}
+       "Winner"]
+      [:th {:class "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"}
+       "Result"]
+      [:th {:class "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"}
+       "Finished At"]]]
+    [:tbody {:class "bg-white divide-y divide-gray-200"}
+     (for [{:keys [created-at
+                   match-result
+                   player-1
+                   player-2
+                   winner]} matches]
+       [:tr {:class "hover:bg-gray-50"}
+        [:td {:class "px-6 py-4 whitespace-nowrap"}
+         [:span {:class "text-sm font-medium"} player-1]]
+        [:td {:class "px-6 py-4 whitespace-nowrap"}
+         [:span {:class "text-sm font-medium"} player-2]]
+        [:td {:class "px-6 py-4 whitespace-nowrap"}
+         [:span {:class "text-sm font-medium"} winner]]
+        [:td {:class "px-6 py-4 whitespace-nowrap"}
+         [:span {:class "text-sm font-medium"} match-result]]
+        [:td {:class "px-6 py-4 whitespace-nowrap"}
+         [:span {:class "text-sm font-medium"} created-at]]])]]])
+
 (defn dashboard [opts & contents]
   (logged-in-wrapper
     opts
@@ -310,59 +344,17 @@
       (join-room-form {})]
      contents]))
 
-;; (defn dashboard [{:keys [username]}]
-;;   (page {}
-;;         [:div {:class "min-h-screen bg-gray-50"}
-;;          ; top bar
-;;          [:div {:class "bg-white shadow"}
-;;           [:div {:class "max-w-5xl mx-auto px-4"}
-;;            [:div {:class "h-16 flex items-center justify-between"}
-;;             [:div {:class "font-medium text-gray-800"}
-;;              username]
-;;             [:button {:class "flex items-center gap-2 text-gray-600 hover:text-gray-800"
-;;                       :hx-post "/logout"}
-;;              "Logout"]]]]
-;;          ; main content
-;;          [:div {:class "max-w-5xl mx-auto px-4 py-8 min-h-screen h-full"}
-;;           [:div {:class "flex flex-col sm:flex-row gap-4 mb-8"}
-;;            [:a {:class "cursor-pointer flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"}
-;;             "Create Room"]
-;;            [:a {:class "cursor-pointer flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"}
-;;             "Join Room"]]
-;;           [:div {:class ""
-;;                  :hx-ext "ws"
-;;                  :ws-connect "/room/123"}
-;;            "Websocket connector"
-;;            [:div {:class ""
-;;                   :id "game-log"}
-;;             [:p "Created Room"]]
-;;            [:div {:class "border-solid cursor-pointer p-2"
-;;                   :id "div-random-id"
-;;                   :name "cell-click"
-;;                   :ws-send ""
-;;                   :hx-vals (json/write-str {:row 4})
-;;                   :hx-trigger "click"}
-;;             "Click me to send some message"
-;;             (render-board (-> (game/empty-board)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :green 0 0)
-;;                             (game/explode :red 0 0)
-;;                             (game/explode :red 0 0)))]]]]))
+(defn game-log [{:keys [status message]}]
+  [:div {:id "game-log-container"
+         :class "text-gray-800 bg-gray-50 rounded p-2 text-md"
+         :hx-swap-oob "afterbegin"}
+    [:div {:class "text-gray-600 bg-gray-50 font-semibold rounded mt-4 p-2 text-md"}
+     (str message)]])
 
-
-(defn game-log [log])
+(defn room-error-card [{:keys [message]}]
+  [:div {:class "text-gray-800 p-4 mx-auto max-w-2xl"
+         :id "main-game-room"}
+   (str message)])
 
 (defn room-info [{:keys [id state p1 p2] :as _room}]
   (let [p1-user (or (entity/player-name p1) "")
@@ -393,11 +385,19 @@
         [:th {:scope "row"
               :class "px-6 py-4 font-medium text-gray-900 whitespace-nowrap"}
          "State"]
-        [:td {:class "rounded-md px-6 py-4 font-medium text-gray-600 "}
-         (name state)]]]]
+        [:td {:class "rounded-md px-6 py-4 font-medium text-gray-600 font-bold"}
+         (condp = state
+           :not-started [:p {:class "font-bold"} "Not Started"]
+           :p1-turn [:p {:class "text-green-600 font-bold"} "Player 1 Turn"]
+           :p2-turn [:p {:class "text-red-600 font-bold"} "Player 2 Turn"]
+           :finished [:p {:class "font-bold"} "Finished"]
+           [:p "Something went wrong."])]]]]
      (when (= :not-started state)
        [:p {:class "py-4 px-4 mt-4 bg-white"}
-        "Game has not yet started. Invite another player by sending them the room code or sharing the URL."])
+        "Game has not yet started. Invite another player by sending them the room number or sharing the URL."])
+     (when (= :unfinished state)
+       [:p {:class "py-4 px-4 mt-4 bg-white"}
+        "Something went wrong. Start a new game."])
      (when (= :finished state)
        [:p {:class "py-4 px-4 mt-4 bg-white"}
         "Game has completed. Move back to the dashboard for playing again."])
@@ -410,11 +410,18 @@
         (signed-in-topbar username
           [:div {:class ""
                  :hx-ext "ws"
-                 :ws-connect (str "/room/play/" id)}
+                 :ws-connect (str "/room/play/" id)
+                 :id "main-game-room"}
             (room-info room)
             (render-board (:board room))
-            [:div {:class ""
-                   :id "game-log"}]])))
+            [:div {:class "mx-auto w-full max-w-2xl min-h-screen pb-8"
+                   :id "game-log"}
+              [:div {:class "p-4"}
+                [:h2 {:class "text-gray-700 font-bold text-lg"}
+                  "Game Log"]]
+              [:div {:class "overflow-y-auto px-4 space-y-2"
+                     :id ""}
+               [:div {:id "game-log-container"}]]]])))
 
 (defn on-error [{:keys [status message ex]}]
   (-> {:status status
