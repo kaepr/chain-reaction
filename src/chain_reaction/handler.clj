@@ -1,16 +1,14 @@
 (ns chain-reaction.handler
-  (:require [ring.util.response :as resp]
-            [chain-reaction.ui :as ui]
+  (:require [chain-reaction.ui :as ui]
             [ring.websocket :as ws]
-            [clojure.data.json :as json]
             [rum.core :as rum]
             [chain-reaction.entity :as entity]
+            [clojure.tools.logging :as log]
             [chain-reaction.room :as room]
+            [clojure.data.json :as json]
             [buddy.hashers :as bh]
-            [chain-reaction.db :as db]
-            [chain-reaction.entity :as e]
-            [clojure.tools.logging :as log]))
-            
+            [chain-reaction.db :as db]))
+
 (defn home-page [{:keys [db] :as req}]
   (ui/home-page))
 
@@ -47,9 +45,12 @@
                                  "User does not exist."
                                  "Something went wrong.")}))))
 
-(defn dashboard-page [req]
-  (let [username (:username (:session req))]
-    (ui/dashboard {:username username})))
+(defn dashboard-page [{:keys [db session] :as req}]
+  (let [{:keys [id username]} session
+        matches (db/find-matches-for-user-id db id)]
+    (ui/dashboard {:username username
+                   :matches matches}
+                  (ui/match-history matches))))
 
 (defn logout [_req]
   {:status 200
@@ -72,47 +73,58 @@
       :else {:status 200
              :headers {"HX-Redirect" (str "/room/play/" room-id)}})))
 
-(defn room-ws-handler [{:keys [path-params *rooms] :as req}]
+(defn room-ws-handler [{:keys [path-params *rooms db] :as req}]
   (let [room-id (:id path-params)
         {:keys [id username]} (:session req)]
     {::ws/listener
      {:on-open
       (fn [socket]
-        (tap> socket)
-        (tap> *rooms)
-        (tap> id)
-        (tap> username)
         (let [player (entity/->player id username socket)
-              _ (tap> "room state")
-              _ (tap> @*rooms)
-              {:keys [error]} (room/join *rooms room-id player)]
-          (if error
+              {:keys [log]} (room/join *rooms room-id player)]
+          (if (= :error (:status log))
             (do
-              (tap> error)
-              (ui/on-error {:message "Failed to join the room."}))
-            (let [_ (ws/send socket (rum/render-static-markup [:div {:id "hi"} "Hello"]))
-                  room (get @*rooms room-id)
-                  sockets (entity/player-sockets room)
-                  _ (do
-                      (tap> "namaste")
-                      (tap> room)
-                      (tap> sockets))
-                  s1 (first socket)
-                  s2 (second socket)
-                  _ (tap> s1)
-                  _ (tap> s2)]
-              (when s1
-                (ws/send s1 (rum/render-static-markup (ui/room-info room))))
-              (when s2
-                (ws/send s2 (rum/render-static-markup (ui/room-info room))))))))
+              (ws/send socket (rum/render-static-markup (ui/room-error-card {:message log})))
+              (ws/close))
+            (let [room (get @*rooms room-id)
+                  sockets (entity/player-sockets room)]
+              (run!
+               (fn [s]
+                 (ws/send s (rum/render-static-markup (ui/room-info room))))
+               sockets)))))
       :on-message
       (fn [socket message]
-        (if (= message "exit")
-          (ws/close socket)
-          (ws/send socket message)))}}))
+        (let [{:keys [event-type] :as event} (update-keys (json/read-str message) keyword)
+              player (entity/->player id username socket)]
+          (condp = event-type
+            "cell-click" (let [{:keys [log board] :as room} (room/handle-click *rooms room-id event player)
+                               sockets (entity/player-sockets room)]
+                           (run!
+                            (fn [s]
+                              (ws/send s (rum/render-static-markup (ui/room-info room)))
+                              (ws/send s (rum/render-static-markup (ui/render-board board)))
+                              (when (= :info (:status log))
+                                (ws/send s (rum/render-static-markup (ui/game-log log)))))
+                            sockets)))))
+      :on-pong
+      (fn [_socket _buffer])
+      :on-close
+      (fn [_socket _code _reason]
+        (let [{:keys [p1 p2 state winner] :as room} (get @*rooms room-id)
+              sockets (entity/player-sockets room)]
+          (when room
+            (when (entity/valid-end-state? state)
+              (db/create-match db {:user-id-1 (entity/player-id p1)
+                                   :user-id-2 (entity/player-id p2)
+                                   :winner-id winner}))
+            (run!
+             (fn [s]
+               (ws/send s (rum/render-static-markup (ui/room-error-card {:message "Player left. Please start a new game."})))
+               (ws/close s))
+             sockets)
+            (swap! *rooms (fn [rooms] (dissoc rooms room-id))))))}}))
 
 (defn room-page [{:keys [path-params *rooms] :as req}]
-  (if (ws/upgrade-request? req)
+  (if (or (:websocket? req) (ws/upgrade-request? req))
     (room-ws-handler req)
     (let [room-id (:id path-params)
           username (:username (:session req))

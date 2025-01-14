@@ -1,7 +1,6 @@
 (ns user
   (:require
    [chain-reaction.system :as system]
-   [clojure.data.json :as json]
    [clojure.tools.namespace.repl :refer [set-refresh-dirs]]
    [integrant.core :as ig]
    [integrant.repl :refer [go halt reset reset-all set-prep!]]))
@@ -26,6 +25,8 @@
   ;; hotload libs
 
   #_(require '[clojure.deps.repl] :refer [add-lib add-libs sync-deps])
+
+  #_(add-libs '{org.ring-clojure/ring-websocket-middleware {:mvn/version "0.2.0"}})
 
   #_(add-libs '{org.clojure/data.json {:mvn/version "2.5.1"}})
 

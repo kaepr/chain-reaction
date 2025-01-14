@@ -8,11 +8,13 @@
         integrant/integrant {:mvn/version "0.13.1"}
         integrant/repl {:mvn/version "0.4.0"}
 
+
         ring/ring-core {:mvn/version "1.13.0"}
         ring/ring-jetty-adapter {:mvn/version "1.13.0"}
         metosin/reitit {:mvn/version "0.7.2"}
         ring/ring-defaults {:mvn/version "0.5.0"}
         jdbc-ring-session/jdbc-ring-session {:mvn/version "1.5.5"}
+        org.ring-clojure/ring-websocket-middleware {:mvn/version "0.2.0"}
 
         rum/rum {:mvn/version "0.12.11"}
 

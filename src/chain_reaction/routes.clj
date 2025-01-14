@@ -1,6 +1,7 @@
 (ns chain-reaction.routes
   (:require [reitit.ring :as ring]
             [chain-reaction.handler :as handler]
+            [ring.websocket.keepalive :as ring-ws]
             [chain-reaction.middleware :as mid]
             [chain-reaction.ui :as ui]))
 
@@ -27,7 +28,8 @@
      ["/room" {:middleware [mid/wrap-logged-in]}
       ["/create" {:post {:handler #'handler/create-room}}]
       ["/join" {:post {:handler #'handler/join-room}}]
-      ["/play/:id" {:get {:handler #'handler/room-page}}]]
+      ["/play/:id" {:get {:handler #'handler/room-page
+                          :middleware [ring-ws/wrap-websocket-keepalive]}}]]
      ["/dashboard" {:get {:handler #'handler/dashboard-page}
                     :middleware [mid/wrap-logged-in]}]]
     {:data {:db db
