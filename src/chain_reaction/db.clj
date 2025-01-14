@@ -36,3 +36,30 @@
                        :from [:users]
                        :where [:= :username username]})
           {:builder-fn rs/as-unqualified-kebab-maps})})
+
+(defn find-matches-for-user-id [db user-id]
+  (jdbc/execute!
+   db
+   (sql/format {:select [[:m.created_at :created_at]
+                         [:m.match_result :match_result]
+                         [:u2.username :player_2]
+                         [:w.username :winner]
+                         [:u1.username :player_1]]
+                :from [[:matches :m]]
+                :where [:or [:= :m.player_1 user-id] [:= :m.player_2 user-id]]
+                :join [[:users :u1] [:= :m.player_1 :u1.id]
+                       [:users :u2] [:= :m.player_2 :u2.id]]
+                :left-join [[:users :w] [:= :m.winner :w.id]]
+                :order-by [[:m.created_at :desc]]})
+   {:builder-fn rs/as-unqualified-kebab-maps}))
+
+(defn create-match [db {:keys [user-id-1 user-id-2 winner-id]}]
+  (let [sql (if winner-id
+              (sql/format {:insert-into [:matches]
+                           :columns [:player_1 :player_2 :winner :match_result]
+                           :values [[user-id-1 user-id-2 winner-id "finished"]]})
+              (sql/format {:insert-into [:matches]
+                           :columns [:player_1 :player_2 :match_result]
+                           :values [[user-id-1 user-id-2 "dnf"]]}))]
+    (jdbc/execute! db sql)))
+
