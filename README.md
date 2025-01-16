@@ -2,10 +2,10 @@
 
 Chain reaction game implemented as a multiplayer web app.
 
-Deployed Link: [chain-reaction-app.fly.dev](https://chain-reaction-app.fly.dev)
+Deployed link: [chain-reaction-app.fly.dev](https://chain-reaction-app.fly.dev)
+Blog link: [Multiplayer board game in Clojure](https://shagunagrawal.me/posts/multiplayer-board-game-in-clojure/) 
 
-Please note that the first load could take a while (around 1 min) to load.
-
+Note that the first load could take a while (around 1 min) to load.
 
 https://github.com/user-attachments/assets/ca69469f-b8f8-4ea2-9a7e-fbbb085218a9
 
