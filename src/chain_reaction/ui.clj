@@ -85,6 +85,10 @@
                   :class "inline-flex items-center border-b-2 px-1 text-blue-600 border-blue-300 hover:border-blue-400"}
               "Chain Reaction"]
              "."]
+            [:p {:class "text:lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed"}
+             [:a {:href "https://github.com/kaepr/chain-reaction"
+                  :class "inline-flex items-center border-b-2 px-1 text-blue-600 border-blue-300 hover:border-blue-400"}
+              "Source"]]
             [:div {:class "flex flex-col sm:flex-row gap-4 justify-center mt-4"}
              [:a {:class "px-8 py-3 text-lg font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-200 transition-colors duration-200 cursor-pointer"
                   :href "/sign-in"}
